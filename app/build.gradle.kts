@@ -11,15 +11,29 @@ android {
         applicationId = "se.r56.video"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // CI passes the GitHub run number so every build is newer than the previous one
+        val build = (project.findProperty("buildNumber") as String?)?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "1.0.$build"
+    }
+
+    signingConfigs {
+        // Fixed key (personal sideloaded app) so updates can be installed over older builds.
+        create("r56") {
+            storeFile = file("r56-release.jks")
+            storePassword = "r56video"
+            keyAlias = "r56"
+            keyPassword = "r56video"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("r56")
+        }
         release {
             isMinifyEnabled = false
-            // Sideloaded app: sign with the debug key so the release APK is installable.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("r56")
         }
     }
 
@@ -59,6 +73,7 @@ dependencies {
     // FFmpeg audio decoders (DTS, TrueHD, ...) built by the Jellyfin project, matches Media3 1.3.1
     implementation("org.jellyfin.media3:media3-ffmpeg-decoder:$media3+1")
 
+    implementation("androidx.core:core:1.13.1")
     implementation("com.hierynomus:smbj:0.13.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
 }

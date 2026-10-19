@@ -83,9 +83,15 @@ class MainActivity : Activity() {
             sources.getOrNull(selected)?.let { showEditor(it) }
         })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_delete, "Remove selected") { confirmRemove() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, "Check for updates") { Updater.check(this, false) })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_exit, "Exit") { finishAffinity() })
 
+        val ver = Ui.text(this, "Version ${Updater.currentName(this)}", 13f, Ui.TEXT_DIM)
+        ver.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), 0, 0)
+        shell.sidebar.addView(ver)
+
         setContentView(shell.root)
+        if (savedInstanceState == null) Updater.check(this, true)
     }
 
     override fun onResume() {
