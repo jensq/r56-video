@@ -17,7 +17,7 @@ class SettingsActivity : Activity() {
     private lateinit var fwdValue: TextView
 
     private val sizes = listOf(
-        "Small" to 16, "Medium" to 20, "Large" to 24, "Extra large" to 28, "Huge" to 34
+        "Extra small" to 12, "Small" to 16, "Medium" to 20, "Large" to 24, "Extra large" to 28, "Huge" to 34
     )
     private val steps = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120, 300)
 
