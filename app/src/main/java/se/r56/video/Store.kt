@@ -56,6 +56,21 @@ object Store {
         prefs = ctx.getSharedPreferences("r56", Context.MODE_PRIVATE)
     }
 
+    // ---- settings ----------------------------------------------------------------------------
+
+    /** Text size (sp) of file and folder names in lists. */
+    var textSizeSp: Int
+        get() = prefs.getInt("textSize", 20)
+        set(v) = prefs.edit().putInt("textSize", v).apply()
+
+    var seekBackSec: Int
+        get() = prefs.getInt("seekBack", 10)
+        set(v) = prefs.edit().putInt("seekBack", v).apply()
+
+    var seekForwardSec: Int
+        get() = prefs.getInt("seekForward", 30)
+        set(v) = prefs.edit().putInt("seekForward", v).apply()
+
     // ---- sources -----------------------------------------------------------------------------
 
     @Synchronized

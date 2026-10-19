@@ -208,11 +208,11 @@ class PlayerActivity : Activity() {
         val buttons = LinearLayout(this)
         buttons.orientation = LinearLayout.HORIZONTAL
         buttons.gravity = Gravity.CENTER
-        buttons.addView(ctrlButton(R.drawable.ic_rew) { seekBy(-10_000) })
+        buttons.addView(ctrlButton(R.drawable.ic_rew) { seekBy(-Store.seekBackSec * 1000L) })
         btnPlay = ctrlButton(R.drawable.ic_pause) { togglePlay() }
         buttons.addView(btnPlay)
         buttons.addView(ctrlButton(R.drawable.ic_stop) { stopAndExit() })
-        buttons.addView(ctrlButton(R.drawable.ic_ff) { seekBy(30_000) })
+        buttons.addView(ctrlButton(R.drawable.ic_ff) { seekBy(Store.seekForwardSec * 1000L) })
         val gap = View(this)
         buttons.addView(gap, LinearLayout.LayoutParams(Ui.dp(this, 40), 1))
         buttons.addView(ctrlButton(R.drawable.ic_audio) { showTrackDialog(C.TRACK_TYPE_AUDIO, "Audio track") })
@@ -329,8 +329,6 @@ class PlayerActivity : Activity() {
             .setEnableDecoderFallback(true)
         val p = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(SmbDataSource.Factory()))
-            .setSeekBackIncrementMs(10_000)
-            .setSeekForwardIncrementMs(30_000)
             .build()
         p.addListener(listener)
         playerView.player = p
@@ -524,22 +522,22 @@ class PlayerActivity : Activity() {
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, KeyEvent.KEYCODE_MEDIA_STEP_FORWARD -> {
-                seekBy(30_000)
+                seekBy(Store.seekForwardSec * 1000L)
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD -> {
-                seekBy(-10_000)
+                seekBy(-Store.seekBackSec * 1000L)
                 return true
             }
         }
         if (!osdVisible) {
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    seekBy(-10_000)
+                    seekBy(-Store.seekBackSec * 1000L)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    seekBy(30_000)
+                    seekBy(Store.seekForwardSec * 1000L)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {

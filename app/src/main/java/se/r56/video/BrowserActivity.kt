@@ -51,7 +51,7 @@ class BrowserActivity : Activity() {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(Ui.dp(ctx, 14), 0, Ui.dp(ctx, 16), 0)
-            row.layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(ctx, 54))
+            row.layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(ctx, Store.textSizeSp * 27 / 10))
 
             val iconRes = when (it.type) {
                 UP -> R.drawable.ic_up
@@ -61,7 +61,8 @@ class BrowserActivity : Activity() {
             }
             row.addView(Ui.icon(ctx, iconRes, 26))
 
-            val label = Ui.text(ctx, it.label, 20f)
+            val ts = Store.textSizeSp.toFloat()
+            val label = Ui.text(ctx, it.label, ts)
             label.maxLines = 1
             label.ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
             val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -71,7 +72,7 @@ class BrowserActivity : Activity() {
             if (it.type == VIDEO || it.type == RAR) {
                 val pr = Store.getProgress(Store.fileKey(src, it.path))
                 if (pr != null && pr.pos > 0) {
-                    val t = Ui.text(ctx, "${Ui.fmtTime(pr.pos)} / ${Ui.fmtTime(pr.dur)}", 15f, Ui.AMBER)
+                    val t = Ui.text(ctx, "${Ui.fmtTime(pr.pos)} / ${Ui.fmtTime(pr.dur)}", ts * 0.75f, Ui.AMBER)
                     val tl = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     tl.leftMargin = Ui.dp(ctx, 12)
                     row.addView(t, tl)
@@ -81,9 +82,9 @@ class BrowserActivity : Activity() {
                     row.addView(c)
                 }
                 val sz = if (it.type == RAR) "RAR" else Ui.fmtSize(it.size)
-                val st = Ui.text(ctx, sz, 15f, Ui.TEXT_DIM)
+                val st = Ui.text(ctx, sz, ts * 0.75f, Ui.TEXT_DIM)
                 st.gravity = Gravity.END
-                val sl = LinearLayout.LayoutParams(Ui.dp(ctx, 84), ViewGroup.LayoutParams.WRAP_CONTENT)
+                val sl = LinearLayout.LayoutParams(Ui.dp(ctx, (Store.textSizeSp * 42 / 10)), ViewGroup.LayoutParams.WRAP_CONTENT)
                 sl.leftMargin = Ui.dp(ctx, 8)
                 row.addView(st, sl)
             }

@@ -37,12 +37,12 @@ class MainActivity : Activity() {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(Ui.dp(ctx, 16), 0, Ui.dp(ctx, 16), 0)
-            row.layoutParams = AbsListViewLp(Ui.dp(ctx, 68))
+            row.layoutParams = AbsListViewLp(Ui.dp(ctx, Store.textSizeSp * 34 / 10))
             row.addView(Ui.icon(ctx, R.drawable.ic_star, 28))
             val col = LinearLayout(ctx)
             col.orientation = LinearLayout.VERTICAL
-            col.addView(Ui.text(ctx, s.name, 20f))
-            col.addView(Ui.text(ctx, s.address, 13f, Ui.TEXT_DIM).also { it.maxLines = 1 })
+            col.addView(Ui.text(ctx, s.name, Store.textSizeSp.toFloat()))
+            col.addView(Ui.text(ctx, s.address, Store.textSizeSp * 0.65f, Ui.TEXT_DIM).also { it.maxLines = 1 })
             val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             lp.leftMargin = Ui.dp(ctx, 16)
             row.addView(col, lp)
@@ -83,6 +83,9 @@ class MainActivity : Activity() {
             sources.getOrNull(selected)?.let { showEditor(it) }
         })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_delete, "Remove selected") { confirmRemove() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_settings, "Settings") {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, "Check for updates") { Updater.check(this, false) })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_exit, "Exit") { finishAffinity() })
 
