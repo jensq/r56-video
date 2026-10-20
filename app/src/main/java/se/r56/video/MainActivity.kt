@@ -74,7 +74,7 @@ class MainActivity : Activity() {
         }
         shell.content.addView(list, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        empty = Ui.text(this, "No favorites yet.\nChoose \"Add location\" in the menu on the left\nto add a network folder (SMB).", 20f, Ui.TEXT_DIM)
+        empty = Ui.text(this, if (shell.isTv) "No favorites yet.\nChoose \"Add location\" in the menu on the left\nto add a network folder (SMB)." else "No favorites yet.\nOpen the menu (top left) and choose\n\"Add location\" to add a network folder (SMB).", 20f, Ui.TEXT_DIM)
         empty.gravity = Gravity.CENTER
         shell.content.addView(empty, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
@@ -95,6 +95,11 @@ class MainActivity : Activity() {
 
         setContentView(shell.root)
         if (savedInstanceState == null) Updater.check(this, true)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (!shell.handleBack()) super.onBackPressed()
     }
 
     override fun onResume() {

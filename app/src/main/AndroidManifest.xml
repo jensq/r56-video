@@ -45,6 +45,7 @@
             android:name=".PlayerActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|smallestScreenSize|screenLayout|uiMode"
+            android:screenOrientation="sensorLandscape"
             android:launchMode="singleTop" />
     </application>
 </manifest>

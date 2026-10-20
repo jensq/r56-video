@@ -286,6 +286,7 @@ class BrowserActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (shell.handleBack()) return
         if (path.isEmpty() || path == src.path) {
             super.onBackPressed()
         } else {

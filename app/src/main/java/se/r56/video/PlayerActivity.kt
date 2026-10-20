@@ -142,6 +142,8 @@ class PlayerActivity : Activity() {
         rootView = FrameLayout(this)
         rootView.setBackgroundColor(Color.BLACK)
 
+        rootView.setOnClickListener { if (osdVisible) hideOsd() else showOsd() } // tap to show/hide controls on phones
+
         playerView = PlayerView(this)
         playerView.useController = false
         playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)

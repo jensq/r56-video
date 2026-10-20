@@ -11,6 +11,7 @@ import android.widget.TextView
 
 /** Settings: list text size and the skip steps used when seeking in a video. */
 class SettingsActivity : Activity() {
+    private lateinit var shell: Ui.Shell
     private lateinit var preview: TextView
     private lateinit var sizeValue: TextView
     private lateinit var backValue: TextView
@@ -26,7 +27,7 @@ class SettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val shell = Ui.shell(this, "Settings")
+        shell = Ui.shell(this, "Settings")
         shell.subtitle.text = "Changes are saved automatically"
 
         val col = LinearLayout(this)
@@ -56,6 +57,11 @@ class SettingsActivity : Activity() {
         r1.first.requestFocus()
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (!shell.handleBack()) super.onBackPressed()
+    }
+
     private fun row(title: String, onClick: () -> Unit): Pair<LinearLayout, TextView> {
         val r = LinearLayout(this)
         r.orientation = LinearLayout.HORIZONTAL
@@ -64,10 +70,12 @@ class SettingsActivity : Activity() {
         r.isFocusable = true
         r.isClickable = true
         r.background = Ui.focusBg()
-        r.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 60))
+        r.minimumHeight = Ui.dp(this, 60)
+        r.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         val t = Ui.text(this, title, 20f)
         r.addView(t, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val v = Ui.text(this, "", 20f, Ui.AMBER)
+        v.setPadding(Ui.dp(this, 12), 0, 0, 0)
         r.addView(v)
         r.setOnClickListener { onClick() }
         return Pair(r, v)

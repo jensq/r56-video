@@ -1,6 +1,9 @@
 package se.r56.video
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -71,14 +74,56 @@ object Ui {
         lp.leftMargin = dp(ctx, 14)
         row.addView(t, lp)
         row.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(ctx, 52))
-        row.setOnClickListener { onClick() }
+        row.setOnClickListener {
+            closeDrawerFrom(row)
+            onClick()
+        }
         return row
     }
 
-    class Shell(val root: FrameLayout, val sidebar: LinearLayout, val content: FrameLayout, val title: TextView, val subtitle: TextView)
+    class DrawerTag(val close: () -> Unit)
 
-    /** Standard screen: top bar (logo, title, clock), left menu, content area. */
+    class Shell(val root: FrameLayout, val sidebar: LinearLayout, val content: FrameLayout, val title: TextView, val subtitle: TextView) {
+        var isTv = true
+        var drawerOpen = false
+        var openDrawer: () -> Unit = {}
+        var closeDrawer: () -> Unit = {}
+
+        /** Phone only: closes the menu drawer if it is open. Returns true if the back press was consumed. */
+        fun handleBack(): Boolean {
+            if (!isTv && drawerOpen) {
+                closeDrawer()
+                return true
+            }
+            return false
+        }
+    }
+
+    /** Chromecast / Android TV (or any device without touchscreen) keeps the original TV layout. */
+    fun isTv(ctx: Context): Boolean {
+        val um = ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+        if (um != null && um.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) return true
+        return !ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
+    }
+
+    private fun closeDrawerFrom(v: View) {
+        var p = v.parent
+        while (p is View) {
+            val t = p.tag
+            if (t is DrawerTag) {
+                t.close()
+                return
+            }
+            p = p.parent
+        }
+    }
+
+    /**
+     * Standard screen: top bar (logo, title, clock), left menu, content area.
+     * TV: menu is always visible on the left. Phone: menu is a drawer opened with the button in the top bar.
+     */
     fun shell(ctx: Context, titleText: String): Shell {
+        val tv = isTv(ctx)
         val root = FrameLayout(ctx)
         root.background = background()
 
@@ -88,20 +133,20 @@ object Ui {
 
         // top bar
         val top = FrameLayout(ctx)
-        val logo = text(ctx, "R56 video", 26f)
+        val logo = text(ctx, "R56 video", if (tv) 26f else 22f)
         logo.setTypeface(logo.typeface, android.graphics.Typeface.BOLD)
         val logoLp = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.START)
-        logoLp.leftMargin = dp(ctx, 28)
+        logoLp.leftMargin = dp(ctx, if (tv) 28 else 60)
         top.addView(logo, logoLp)
         val clock = TextClock(ctx)
         clock.format24Hour = "HH:mm"
         clock.format12Hour = "HH:mm"
-        clock.textSize = 24f
+        clock.textSize = if (tv) 24f else 18f
         clock.setTextColor(TEXT)
         val clockLp = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.END)
-        clockLp.rightMargin = dp(ctx, 32)
+        clockLp.rightMargin = dp(ctx, if (tv) 32 else 16)
         top.addView(clock, clockLp)
-        col.addView(top, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(ctx, 64)))
+        col.addView(top, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(ctx, if (tv) 64 else 56)))
 
         // body
         val body = LinearLayout(ctx)
@@ -110,16 +155,21 @@ object Ui {
 
         val sidebar = LinearLayout(ctx)
         sidebar.orientation = LinearLayout.VERTICAL
-        sidebar.setBackgroundColor(0x66000000)
         sidebar.setPadding(0, dp(ctx, 12), 0, 0)
-        body.addView(sidebar, LinearLayout.LayoutParams(dp(ctx, 250), ViewGroup.LayoutParams.MATCH_PARENT))
+        if (tv) {
+            sidebar.setBackgroundColor(0x66000000)
+            body.addView(sidebar, LinearLayout.LayoutParams(dp(ctx, 250), ViewGroup.LayoutParams.MATCH_PARENT))
+        }
 
         val right = LinearLayout(ctx)
         right.orientation = LinearLayout.VERTICAL
-        right.setPadding(dp(ctx, 28), dp(ctx, 8), dp(ctx, 28), dp(ctx, 8))
+        val padH = if (tv) 28 else 16
+        right.setPadding(dp(ctx, padH), dp(ctx, 8), dp(ctx, padH), dp(ctx, 8))
         body.addView(right, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
 
-        val title = text(ctx, titleText, 26f)
+        val title = text(ctx, titleText, if (tv) 26f else 22f)
+        title.maxLines = 1
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
         right.addView(title)
         val subtitle = text(ctx, "", 14f, TEXT_DIM)
         subtitle.maxLines = 1
@@ -131,7 +181,56 @@ object Ui {
         clp.topMargin = dp(ctx, 10)
         right.addView(content, clp)
 
-        return Shell(root, sidebar, content, title, subtitle)
+        val shell = Shell(root, sidebar, content, title, subtitle)
+        shell.isTv = tv
+        if (!tv) setupDrawer(ctx, shell, top)
+        return shell
+    }
+
+    private fun setupDrawer(ctx: Context, shell: Shell, top: FrameLayout) {
+        val root = shell.root
+        val sidebar = shell.sidebar
+
+        val overlay = FrameLayout(ctx)
+        overlay.visibility = View.GONE
+        val scrim = View(ctx)
+        scrim.setBackgroundColor(0x99000000.toInt())
+        scrim.isClickable = true
+        overlay.addView(scrim, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        val width = minOf(dp(ctx, 290), (ctx.resources.displayMetrics.widthPixels * 0.82f).toInt())
+        sidebar.setBackgroundColor(0xFF111B26.toInt())
+        sidebar.isClickable = true
+        sidebar.tag = DrawerTag { shell.closeDrawer() }
+        overlay.addView(sidebar, FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT))
+        root.addView(overlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        shell.openDrawer = {
+            shell.drawerOpen = true
+            overlay.visibility = View.VISIBLE
+            scrim.alpha = 0f
+            scrim.animate().alpha(1f).setDuration(160).start()
+            sidebar.translationX = -width.toFloat()
+            sidebar.animate().translationX(0f).setDuration(180).start()
+            if (sidebar.childCount > 0) sidebar.getChildAt(0).requestFocus()
+        }
+        shell.closeDrawer = {
+            shell.drawerOpen = false
+            scrim.animate().alpha(0f).setDuration(140).start()
+            sidebar.animate().translationX(-width.toFloat()).setDuration(160).withEndAction {
+                if (!shell.drawerOpen) overlay.visibility = View.GONE
+            }.start()
+        }
+        scrim.setOnClickListener { shell.closeDrawer() }
+
+        val burger = icon(ctx, R.drawable.ic_menu, 28)
+        burger.setPadding(dp(ctx, 10), dp(ctx, 10), dp(ctx, 10), dp(ctx, 10))
+        burger.isFocusable = true
+        burger.isClickable = true
+        burger.background = focusBg()
+        burger.contentDescription = "Menu"
+        burger.setOnClickListener { if (shell.drawerOpen) shell.closeDrawer() else shell.openDrawer() }
+        top.addView(burger, FrameLayout.LayoutParams(dp(ctx, 48), dp(ctx, 48), Gravity.CENTER_VERTICAL or Gravity.START).also { it.leftMargin = dp(ctx, 6) })
     }
 
     fun addMenu(shell: Shell, view: View) = shell.sidebar.addView(view)
