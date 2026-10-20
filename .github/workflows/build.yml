@@ -26,9 +26,8 @@ jobs:
           chmod +x ./gradlew
           set -o pipefail
           ./gradlew assembleDebug -PbuildNumber=${{ github.run_number }} --no-daemon --stacktrace 2>&1 | tee build.log || {
-            echo "::error title=KotlinErrors::$(grep -E "(^| )e: " build.log | sed -E "s#file:///home/runner/work/r56-video/r56-video/##" | head -15 | cut -c1-300 | tr "\n" "|")" | while IFS= read -r line; do
-              echo "::error::$(echo "$line" | cut -c1-400)"
-            done
+            ERRS=$(grep -E "(^| )e: " build.log | sed -E "s#file:///home/runner/work/[^/]*/[^/]*/##" | head -15 | cut -c1-300 | tr '\n' '|')
+            echo "::error title=KotlinErrors::${ERRS}"
             exit 1
           }
 
