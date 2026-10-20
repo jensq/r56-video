@@ -63,6 +63,11 @@ object Store {
         get() = prefs.getInt("textSize", 20)
         set(v) = prefs.edit().putInt("textSize", v).apply()
 
+    /** true = try the FFmpeg software audio decoder before the device's hardware decoder. */
+    var softwareAudioFirst: Boolean
+        get() = prefs.getBoolean("swAudio", false)
+        set(v) = prefs.edit().putBoolean("swAudio", v).apply()
+
     var seekBackSec: Int
         get() = prefs.getInt("seekBack", 10)
         set(v) = prefs.edit().putInt("seekBack", v).apply()

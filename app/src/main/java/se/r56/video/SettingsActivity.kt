@@ -16,6 +16,7 @@ class SettingsActivity : Activity() {
     private lateinit var sizeValue: TextView
     private lateinit var backValue: TextView
     private lateinit var fwdValue: TextView
+    private lateinit var audioValue: TextView
 
     private val sizes = listOf(
         "Extra small" to 12, "Small" to 16, "Medium" to 20, "Large" to 24, "Extra large" to 28, "Huge" to 34
@@ -43,6 +44,9 @@ class SettingsActivity : Activity() {
         val r3 = row("Skip forward") { chooseStep(false) }
         fwdValue = r3.second
         col.addView(r3.first)
+        val r4 = row("Audio decoder") { chooseAudio() }
+        audioValue = r4.second
+        col.addView(r4.first)
 
         preview = Ui.text(this, "", 20f)
         preview.setPadding(Ui.dp(this, 16), Ui.dp(this, 28), 0, 0)
@@ -85,8 +89,21 @@ class SettingsActivity : Activity() {
         sizeValue.text = sizeName(Store.textSizeSp)
         backValue.text = secLabel(Store.seekBackSec)
         fwdValue.text = secLabel(Store.seekForwardSec)
+        audioValue.text = if (Store.softwareAudioFirst) "Software first" else "Automatic"
         preview.text = "Preview: Example Folder Name"
         preview.textSize = Store.textSizeSp.toFloat()
+    }
+
+    private fun chooseAudio() {
+        val items = arrayOf("Automatic (device decoder, software as backup)", "Software first (FFmpeg: AC3, E-AC3, DTS, TrueHD…)")
+        AlertDialog.Builder(this)
+            .setTitle("Audio decoder")
+            .setSingleChoiceItems(items, if (Store.softwareAudioFirst) 1 else 0) { d, which ->
+                Store.softwareAudioFirst = which == 1
+                d.dismiss()
+                refresh()
+            }
+            .show()
     }
 
     private fun chooseSize() {

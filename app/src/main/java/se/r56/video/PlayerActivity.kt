@@ -54,6 +54,10 @@ class PlayerActivity : Activity() {
     private var finishing = false
     private lateinit var progressKey: String
     private var startMs = 0L
+    private var curUri: Uri? = null
+    private var curSubs: List<MediaItem.SubtitleConfiguration> = emptyList()
+    private var ffmpegFirst = false
+    private var autoSwitched = false
     private var title = ""
 
     private val hideOsdRunnable = Runnable { hideOsd() }
@@ -315,19 +319,48 @@ class PlayerActivity : Activity() {
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying && autoSwitched && !Store.softwareAudioFirst) {
+                // The software decoder fixed it: remember that for this device.
+                Store.softwareAudioFirst = true
+            }
             updateUi()
             if (isPlaying) scheduleHideOsd() else handler.removeCallbacks(hideOsdRunnable)
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            val decoderProblem = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+            val uri = curUri
+            if (decoderProblem && !ffmpegFirst && uri != null) {
+                // Hardware decoder failed: restart at the same position with the FFmpeg software decoder first.
+                val pos = player?.currentPosition ?: 0L
+                handler.post {
+                    if (destroyed) return@post
+                    player?.release()
+                    player = null
+                    ffmpegFirst = true
+                    autoSwitched = true
+                    startPlayer(uri, curSubs, pos)
+                    showToast("Switched to software audio decoder")
+                }
+                return
+            }
             val detail = error.cause?.message ?: error.message ?: error.errorCodeName
             showError(detail)
         }
     }
 
-    private fun startPlayer(uri: Uri, subs: List<MediaItem.SubtitleConfiguration>) {
+    private fun startPlayer(uri: Uri, subs: List<MediaItem.SubtitleConfiguration>, startAt: Long = startMs) {
+        curUri = uri
+        curSubs = subs
+        if (Store.softwareAudioFirst) ffmpegFirst = true
         val renderers = DefaultRenderersFactory(this)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setExtensionRendererMode(
+                if (ffmpegFirst) DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+            )
             .setEnableDecoderFallback(true)
         val p = ExoPlayer.Builder(this, renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(SmbDataSource.Factory()))
@@ -335,7 +368,7 @@ class PlayerActivity : Activity() {
         p.addListener(listener)
         playerView.player = p
         val item = MediaItem.Builder().setUri(uri).setSubtitleConfigurations(subs).build()
-        p.setMediaItem(item, startMs)
+        p.setMediaItem(item, startAt)
         p.prepare()
         p.playWhenReady = true
         player = p
