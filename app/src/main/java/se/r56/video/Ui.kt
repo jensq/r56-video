@@ -107,14 +107,14 @@ object Ui {
     }
 
     private fun closeDrawerFrom(v: View) {
-        var p = v.parent
-        while (p is View) {
-            val t = p.tag
+        var cur: View? = v
+        while (cur != null) {
+            val t = cur.tag
             if (t is DrawerTag) {
                 t.close()
                 return
             }
-            p = p.parent
+            cur = cur.parent as? View
         }
     }
 
