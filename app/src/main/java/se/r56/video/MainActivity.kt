@@ -149,8 +149,8 @@ class MainActivity : Activity() {
             val e = EditText(this)
             e.hint = hint
             e.setText(value)
+            e.setSingleLine(true) // must come first: it would otherwise reset the password masking
             e.inputType = type
-            e.setSingleLine(true)
             form.addView(e, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             return e
         }
