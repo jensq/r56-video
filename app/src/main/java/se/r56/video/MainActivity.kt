@@ -25,6 +25,7 @@ class MainActivity : Activity() {
     private lateinit var empty: TextView
     private var sources: List<Source> = emptyList()
     private var selected = 0
+    private val langAtCreate = Store.language
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = sources.size
@@ -55,8 +56,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        shell = Ui.shell(this, "Favorites")
-        shell.subtitle.text = "Saved network locations"
+        shell = Ui.shell(this, L.t("Favorites"))
+        shell.subtitle.text = L.t("Saved network locations")
 
         list = ListView(this)
         styleKodiList(list)
@@ -74,22 +75,22 @@ class MainActivity : Activity() {
         }
         shell.content.addView(list, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        empty = Ui.text(this, if (shell.isTv) "No favorites yet.\nChoose \"Add location\" in the menu on the left\nto add a network folder (SMB)." else "No favorites yet.\nOpen the menu (top left) and choose\n\"Add location\" to add a network folder (SMB).", 20f, Ui.TEXT_DIM)
+        empty = Ui.text(this, if (shell.isTv) L.t("No favorites yet.\nChoose \"Add location\" in the menu on the left\nto add a network folder (SMB).") else L.t("No favorites yet.\nOpen the menu (top left) and choose\n\"Add location\" to add a network folder (SMB)."), 20f, Ui.TEXT_DIM)
         empty.gravity = Gravity.CENTER
         shell.content.addView(empty, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_add, "Add location") { showEditor(null) })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_edit, "Edit selected") {
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_add, L.t("Add location")) { showEditor(null) })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_edit, L.t("Edit selected")) {
             sources.getOrNull(selected)?.let { showEditor(it) }
         })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_delete, "Remove selected") { confirmRemove() })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_settings, "Settings") {
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_delete, L.t("Remove selected")) { confirmRemove() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_settings, L.t("Settings")) {
             startActivity(Intent(this, SettingsActivity::class.java))
         })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, "Check for updates") { Updater.check(this, false) })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_exit, "Exit") { finishAffinity() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, L.t("Check for updates")) { Updater.check(this, false) })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_exit, L.t("Exit")) { finishAffinity() })
 
-        val ver = Ui.text(this, "Version ${Updater.currentName(this)}", 13f, Ui.TEXT_DIM)
+        val ver = Ui.text(this, L.f("Version %s", Updater.currentName(this)), 13f, Ui.TEXT_DIM)
         ver.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), 0, 0)
         shell.sidebar.addView(ver)
 
@@ -104,6 +105,10 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (Store.language != langAtCreate) {
+            recreate()
+            return
+        }
         reload()
     }
 
@@ -125,13 +130,13 @@ class MainActivity : Activity() {
     private fun confirmRemove() {
         val s = sources.getOrNull(selected) ?: return
         AlertDialog.Builder(this)
-            .setTitle("Remove \"${s.name}\"?")
-            .setMessage("The location is removed from the favorites. Nothing is deleted on the network.")
-            .setPositiveButton("Remove") { _, _ ->
+            .setTitle(L.f("Remove \"%s\"?", s.name))
+            .setMessage(L.t("The location is removed from the favorites. Nothing is deleted on the network."))
+            .setPositiveButton(L.t("Remove")) { _, _ ->
                 Store.remove(s.id)
                 reload()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(L.t("Cancel"), null)
             .show()
     }
 
@@ -150,31 +155,31 @@ class MainActivity : Activity() {
             return e
         }
 
-        val name = field("Name (e.g. Movies)", existing?.name ?: "", InputType.TYPE_CLASS_TEXT)
+        val name = field(L.t("Name (e.g. Movies)"), existing?.name ?: "", InputType.TYPE_CLASS_TEXT)
         val addr = field(
-            "Address: smb://server/share/folder", existing?.address ?: "smb://",
+            L.t("Address: smb://server/share/folder"), existing?.address ?: "smb://",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
         )
         val userText = existing?.let { if (it.domain.isNotEmpty()) "${it.domain}\\${it.user}" else it.user } ?: ""
-        val user = field("Username (empty = guest)", userText, InputType.TYPE_CLASS_TEXT)
+        val user = field(L.t("Username (empty = guest)"), userText, InputType.TYPE_CLASS_TEXT)
         val pass = field(
-            "Password", existing?.pass ?: "",
+            L.t("Password"), existing?.pass ?: "",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
 
         val scroll = ScrollView(this)
         scroll.addView(form)
         val dialog = AlertDialog.Builder(this)
-            .setTitle(if (existing == null) "Add location" else "Edit location")
+            .setTitle(if (existing == null) L.t("Add location") else L.t("Edit location"))
             .setView(scroll)
-            .setPositiveButton("Save", null)
-            .setNegativeButton("Cancel", null)
+            .setPositiveButton(L.t("Save"), null)
+            .setNegativeButton(L.t("Cancel"), null)
             .create()
         dialog.show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val parsed = Source.parseAddress(addr.text.toString())
             if (parsed == null) {
-                Toast.makeText(this, "Address must contain server and share, e.g. smb://192.168.1.10/media", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, L.t("Address must contain server and share, e.g. smb://192.168.1.10/media"), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
             val (host, share, path) = parsed

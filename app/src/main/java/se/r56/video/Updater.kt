@@ -35,7 +35,7 @@ object Updater {
         c.setRequestProperty("Accept", "application/vnd.github+json")
         try {
             if (c.responseCode == 404) return null // no release published yet
-            if (c.responseCode != 200) throw java.io.IOException("GitHub answered ${c.responseCode}")
+            if (c.responseCode != 200) throw java.io.IOException(L.f("GitHub answered %d", c.responseCode))
             val o = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
             val tag = o.getString("tag_name") // build-<number>
             val num = tag.substringAfterLast('-').toIntOrNull() ?: return null
@@ -63,12 +63,12 @@ object Updater {
                     if (r != null && r.build > cur) {
                         offer(a, r)
                     } else if (!silent) {
-                        Toast.makeText(a, "You have the latest version (${currentName(a)})", Toast.LENGTH_LONG).show()
+                        Toast.makeText(a, L.f("You have the latest version (%s)", currentName(a)), Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 if (!silent) a.runOnUiThread {
-                    Toast.makeText(a, "Update check failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(a, L.f("Update check failed: %s", e.message), Toast.LENGTH_LONG).show()
                 }
             }
         }.start()
@@ -77,17 +77,17 @@ object Updater {
     private fun offer(a: Activity, r: Release) {
         val size = if (r.size > 0) " (${Ui.fmtSize(r.size)})" else ""
         AlertDialog.Builder(a)
-            .setTitle("Update available")
-            .setMessage("Version ${r.name}$size is available. You have ${currentName(a)}.\n\nDownload and install now?")
-            .setPositiveButton("Update") { _, _ -> download(a, r) }
-            .setNegativeButton("Later", null)
+            .setTitle(L.t("Update available"))
+            .setMessage(L.f("Version %s%s is available. You have %s.\n\nDownload and install now?", r.name, size, currentName(a)))
+            .setPositiveButton(L.t("Update")) { _, _ -> download(a, r) }
+            .setNegativeButton(L.t("Later"), null)
             .show()
     }
 
     private fun download(a: Activity, r: Release) {
         val dlg = ProgressDialog(a)
-        dlg.setTitle("Downloading update")
-        dlg.setMessage("Version ${r.name}")
+        dlg.setTitle(L.t("Downloading update"))
+        dlg.setMessage(L.f("Version %s", r.name))
         dlg.isIndeterminate = false
         dlg.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
         dlg.max = 100
@@ -102,7 +102,7 @@ object Updater {
                 val c = URL(r.url).openConnection() as HttpURLConnection
                 c.connectTimeout = 15000
                 c.readTimeout = 30000
-                if (c.responseCode != 200) throw java.io.IOException("Download failed (${c.responseCode})")
+                if (c.responseCode != 200) throw java.io.IOException(L.f("Download failed (%d)", c.responseCode))
                 val total = c.contentLengthLong
                 c.inputStream.use { input ->
                     out.outputStream().use { os ->
@@ -133,8 +133,8 @@ object Updater {
                 a.runOnUiThread {
                     dlg.dismiss()
                     if (!a.isDestroyed) {
-                        AlertDialog.Builder(a).setTitle("Update failed").setMessage(e.message ?: e.toString())
-                            .setPositiveButton("Close", null).show()
+                        AlertDialog.Builder(a).setTitle(L.t("Update failed")).setMessage(e.message ?: e.toString())
+                            .setPositiveButton(L.t("Close"), null).show()
                     }
                 }
             }
@@ -144,9 +144,9 @@ object Updater {
     private fun install(a: Activity, apk: File) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
             AlertDialog.Builder(a)
-                .setTitle("Allow installing updates")
-                .setMessage("Android needs your permission for R56 video to install apps. Enable \"Allow from this source\" on the next screen, then choose Check for updates again.")
-                .setPositiveButton("Open settings") { _, _ ->
+                .setTitle(L.t("Allow installing updates"))
+                .setMessage(L.t("Android needs your permission for R56 video to install apps. Enable \"Allow from this source\" on the next screen, then choose Check for updates again."))
+                .setPositiveButton(L.t("Open settings")) { _, _ ->
                     try {
                         a.startActivity(
                             Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${a.packageName}"))
@@ -154,12 +154,12 @@ object Updater {
                     } catch (e: Exception) {
                         Toast.makeText(
                             a,
-                            "Open Settings → Apps → Security & restrictions → Unknown sources and enable R56 video",
+                            L.t("Open Settings → Apps → Security & restrictions → Unknown sources and enable R56 video"),
                             Toast.LENGTH_LONG
                         ).show()
                     }
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(L.t("Cancel"), null)
                 .show()
             return
         }
@@ -170,7 +170,7 @@ object Updater {
         try {
             a.startActivity(i)
         } catch (e: Exception) {
-            Toast.makeText(a, "Could not start installer: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(a, L.f("Could not start installer: %s", e.message), Toast.LENGTH_LONG).show()
         }
     }
 }

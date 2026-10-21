@@ -228,7 +228,7 @@ object Ui {
         burger.isFocusable = true
         burger.isClickable = true
         burger.background = focusBg()
-        burger.contentDescription = "Menu"
+        burger.contentDescription = L.t("Menu")
         burger.setOnClickListener { if (shell.drawerOpen) shell.closeDrawer() else shell.openDrawer() }
         top.addView(burger, FrameLayout.LayoutParams(dp(ctx, 48), dp(ctx, 48), Gravity.CENTER_VERTICAL or Gravity.START).also { it.leftMargin = dp(ctx, 6) })
     }

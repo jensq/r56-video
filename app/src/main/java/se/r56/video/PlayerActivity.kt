@@ -153,7 +153,7 @@ class PlayerActivity : Activity() {
         playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         rootView.addView(playerView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        loading = Ui.text(this, "Opening…", 22f)
+        loading = Ui.text(this, L.t("Opening…"), 22f)
         rootView.addView(loading, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
 
         topBar = Ui.text(this, title, 22f)
@@ -221,8 +221,8 @@ class PlayerActivity : Activity() {
         buttons.addView(ctrlButton(R.drawable.ic_ff) { seekBy(Store.seekForwardSec * 1000L) })
         val gap = View(this)
         buttons.addView(gap, LinearLayout.LayoutParams(Ui.dp(this, 40), 1))
-        buttons.addView(ctrlButton(R.drawable.ic_audio) { showTrackDialog(C.TRACK_TYPE_AUDIO, "Audio track") })
-        buttons.addView(ctrlButton(R.drawable.ic_subs) { showTrackDialog(C.TRACK_TYPE_TEXT, "Subtitles") })
+        buttons.addView(ctrlButton(R.drawable.ic_audio) { showTrackDialog(C.TRACK_TYPE_AUDIO, L.t("Audio track")) })
+        buttons.addView(ctrlButton(R.drawable.ic_subs) { showTrackDialog(C.TRACK_TYPE_TEXT, L.t("Subtitles")) })
         osd.addView(buttons)
 
         rootView.addView(osd, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
@@ -303,7 +303,7 @@ class PlayerActivity : Activity() {
             if (!e.name.startsWith(base, ignoreCase = true)) continue
             val lang = e.name.substring(base.length, e.name.length - ext.length - 1).trim('.', ' ', '_', '-')
             val uri = SmbDataSource.buildUri(SmbDataSource.SCHEME_SMB, src.id, if (dir.isEmpty()) e.name else "$dir/${e.name}")
-            val b = MediaItem.SubtitleConfiguration.Builder(uri).setMimeType(mime).setLabel(if (lang.isEmpty()) "External ${ext.uppercase()}" else lang)
+            val b = MediaItem.SubtitleConfiguration.Builder(uri).setMimeType(mime).setLabel(if (lang.isEmpty()) L.f("External %s", ext.uppercase()) else lang)
             if (lang.isNotEmpty()) b.setLanguage(lang)
             out.add(b.build())
         }
@@ -343,7 +343,7 @@ class PlayerActivity : Activity() {
                     ffmpegFirst = true
                     autoSwitched = true
                     startPlayer(uri, curSubs, pos)
-                    showToast("Switched to software audio decoder")
+                    showToast(L.t("Switched to software audio decoder"))
                 }
                 return
             }
@@ -425,9 +425,9 @@ class PlayerActivity : Activity() {
         if (destroyed) return
         loading.visibility = View.GONE
         AlertDialog.Builder(this)
-            .setTitle("Playback error")
+            .setTitle(L.t("Playback error"))
             .setMessage(msg)
-            .setPositiveButton("Close") { _, _ -> finishPlayback() }
+            .setPositiveButton(L.t("Close")) { _, _ -> finishPlayback() }
             .setOnCancelListener { finishPlayback() }
             .show()
     }
@@ -438,7 +438,7 @@ class PlayerActivity : Activity() {
 
     private fun langName(l: String?): String? {
         if (l.isNullOrEmpty() || l == C.LANGUAGE_UNDETERMINED) return null
-        val n = Locale.forLanguageTag(l).getDisplayLanguage(Locale.ENGLISH)
+        val n = Locale.forLanguageTag(l).getDisplayLanguage(L.locale())
         return if (n.isNullOrEmpty()) l else n.replaceFirstChar { it.uppercase() }
     }
 
@@ -479,8 +479,8 @@ class PlayerActivity : Activity() {
         if (!lbl.isNullOrEmpty() && parts.none { it.equals(lbl, ignoreCase = true) }) parts.add(lbl)
         codecName(f.sampleMimeType)?.let { parts.add(it) }
         if (audio) channels(f.channelCount)?.let { parts.add(it) }
-        if ((f.selectionFlags and C.SELECTION_FLAG_FORCED) != 0) parts.add("forced")
-        return if (parts.isEmpty()) "Track" else parts.joinToString(" · ")
+        if ((f.selectionFlags and C.SELECTION_FLAG_FORCED) != 0) parts.add(L.t("forced"))
+        return if (parts.isEmpty()) L.t("Track") else parts.joinToString(" · ")
     }
 
     private fun showTrackDialog(type: Int, dialogTitle: String) {
@@ -489,7 +489,7 @@ class PlayerActivity : Activity() {
         val choices = ArrayList<Choice>()
         if (!audio) {
             val off = p.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
-            choices.add(Choice("Off", off) {
+            choices.add(Choice(L.t("Off"), off) {
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
             })
         }
@@ -501,7 +501,7 @@ class PlayerActivity : Activity() {
                 n++
                 val f = g.getTrackFormat(i)
                 var label = describe(f, audio)
-                if (!g.isTrackSupported(i)) label += "  (unsupported)"
+                if (!g.isTrackSupported(i)) label += L.t("  (unsupported)")
                 val isSel = g.isTrackSelected(i) && !anyDisabled
                 val group = g.mediaTrackGroup
                 val idx = i
@@ -514,7 +514,7 @@ class PlayerActivity : Activity() {
             }
         }
         if (n == 0) {
-            Toast.makeText(this, if (audio) "No audio tracks found" else "No subtitles available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, if (audio) L.t("No audio tracks found") else L.t("No subtitles available"), Toast.LENGTH_SHORT).show()
             return
         }
         var checked = choices.indexOfFirst { it.selected }

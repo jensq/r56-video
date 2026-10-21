@@ -119,10 +119,10 @@ class BrowserActivity : Activity() {
         status.gravity = Gravity.CENTER
         shell.content.addView(status, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_star, "Add folder to favorites") { addFavorite() })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_eye, "Toggle watched") { toggleWatched() })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, "Refresh") { load(path, selected) })
-        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_home, "Home") { finish() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_star, L.t("Add folder to favorites")) { addFavorite() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_eye, L.t("Toggle watched")) { toggleWatched() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_refresh, L.t("Refresh")) { load(path, selected) })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_home, L.t("Home")) { finish() })
 
         setContentView(shell.root)
         load(src.path, 0)
@@ -145,7 +145,7 @@ class BrowserActivity : Activity() {
         val my = ++token
         path = p
         shell.subtitle.text = "smb://${src.host}/${src.share}" + if (p.isEmpty()) "" else "/$p"
-        status.text = "Loading…"
+        status.text = L.t("Loading…")
         status.visibility = View.VISIBLE
         list.visibility = View.INVISIBLE
         io.execute {
@@ -182,7 +182,7 @@ class BrowserActivity : Activity() {
         adapter.notifyDataSetChanged()
         val hasContent = built.any { it.type != UP }
         if (!hasContent) {
-            status.text = "No folders or video files here"
+            status.text = L.t("No folders or video files here")
             status.visibility = View.VISIBLE
         } else {
             status.visibility = View.GONE
@@ -197,7 +197,7 @@ class BrowserActivity : Activity() {
     private fun showError(msg: String) {
         items = emptyList()
         adapter.notifyDataSetChanged()
-        status.text = "Could not open this location:\n$msg"
+        status.text = L.f("Could not open this location:\n%s", msg)
         status.visibility = View.VISIBLE
         list.visibility = View.INVISIBLE
         shell.sidebar.getChildAt(0).requestFocus()
@@ -220,9 +220,9 @@ class BrowserActivity : Activity() {
         if (pr != null && pr.pos > 15_000) {
             AlertDialog.Builder(this)
                 .setTitle(item.label)
-                .setMessage("You have watched part of this video.")
-                .setPositiveButton("Resume from ${Ui.fmtTime(pr.pos)}") { _, _ -> start(item, pr.pos) }
-                .setNegativeButton("Play from beginning") { _, _ -> start(item, 0) }
+                .setMessage(L.t("You have watched part of this video."))
+                .setPositiveButton(L.f("Resume from %s", Ui.fmtTime(pr.pos))) { _, _ -> start(item, pr.pos) }
+                .setNegativeButton(L.t("Play from beginning")) { _, _ -> start(item, 0) }
                 .show()
         } else {
             start(item, 0)
@@ -243,16 +243,16 @@ class BrowserActivity : Activity() {
     private fun toggleWatched() {
         val it = items.getOrNull(selected)
         if (it == null || (it.type != VIDEO && it.type != RAR)) {
-            Toast.makeText(this, "Select a video first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, L.t("Select a video first"), Toast.LENGTH_SHORT).show()
             return
         }
         val key = Store.fileKey(src, it.path)
         if (Store.getProgress(key) != null) {
             Store.clearProgress(key)
-            Toast.makeText(this, "Marked as unwatched", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, L.t("Marked as unwatched"), Toast.LENGTH_SHORT).show()
         } else {
             Store.setProgress(key, 0, 0, true)
-            Toast.makeText(this, "Marked as watched", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, L.t("Marked as watched"), Toast.LENGTH_SHORT).show()
         }
         adapter.notifyDataSetChanged()
     }
@@ -262,7 +262,7 @@ class BrowserActivity : Activity() {
             it.host == src.host && it.share == src.share && it.path == path && it.user == src.user && it.domain == src.domain
         }
         if (dup) {
-            Toast.makeText(this, "This folder is already in your favorites", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, L.t("This folder is already in your favorites"), Toast.LENGTH_SHORT).show()
             return
         }
         val edit = EditText(this)
@@ -272,15 +272,15 @@ class BrowserActivity : Activity() {
         box.setPadding(Ui.dp(this, 24), Ui.dp(this, 8), Ui.dp(this, 24), 0)
         box.addView(edit, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         AlertDialog.Builder(this)
-            .setTitle("Add to favorites")
-            .setMessage("Name for this folder:")
+            .setTitle(L.t("Add to favorites"))
+            .setMessage(L.t("Name for this folder:"))
             .setView(box)
-            .setPositiveButton("Add") { _, _ ->
-                val n = edit.text.toString().trim().ifEmpty { "Folder" }
+            .setPositiveButton(L.t("Add")) { _, _ ->
+                val n = edit.text.toString().trim().ifEmpty { L.t("Folder") }
                 Store.upsert(Source(Store.newId(), n, src.host, src.share, path, src.user, src.pass, src.domain))
-                Toast.makeText(this, "Added to favorites", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, L.t("Added to favorites"), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(L.t("Cancel"), null)
             .show()
     }
 
