@@ -37,6 +37,7 @@ class BrowserActivity : Activity() {
     private var items: List<Item> = emptyList()
     private var selected = 0
     private var token = 0
+    private var pendingSelect: String? = null
     private val selMemory = HashMap<String, Int>()
     private val io = Executors.newSingleThreadExecutor()
 
@@ -125,7 +126,8 @@ class BrowserActivity : Activity() {
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_home, L.t("Home")) { finish() })
 
         setContentView(shell.root)
-        load(src.path, 0)
+        pendingSelect = intent.getStringExtra("select")
+        load(intent.getStringExtra("folder") ?: src.path, 0)
     }
 
     override fun onResume() {
@@ -188,7 +190,12 @@ class BrowserActivity : Activity() {
             status.visibility = View.GONE
         }
         list.visibility = View.VISIBLE
-        val idx = select.coerceIn(0, maxOf(0, built.size - 1))
+        var idx = select.coerceIn(0, maxOf(0, built.size - 1))
+        pendingSelect?.let { sp ->
+            val i = built.indexOfFirst { it.path == sp }
+            if (i >= 0) idx = i
+            pendingSelect = null
+        }
         selected = idx
         list.setSelection(idx)
         if (built.isNotEmpty()) list.requestFocus() else shell.sidebar.getChildAt(0).requestFocus()

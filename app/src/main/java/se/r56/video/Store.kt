@@ -47,6 +47,9 @@ data class Source(
     }
 }
 
+/** A recently watched video (newest first in the list, max 10). */
+data class Recent(val key: String, val sourceId: String, val path: String, val rar: Boolean, val title: String, val ts: Long)
+
 data class Progress(val pos: Long, val dur: Long, val watched: Boolean)
 
 object Store {
@@ -116,6 +119,33 @@ object Store {
     fun remove(id: String) = saveSources(sources().filter { it.id != id })
 
     fun newId(): String = System.currentTimeMillis().toString(36) + (Math.random() * 1000).toInt().toString(36)
+
+    // ---- recently watched ---------------------------------------------------------------------
+
+    @Synchronized
+    fun recents(): List<Recent> {
+        val raw = prefs.getString("recent", null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map {
+                val o = arr.getJSONObject(it)
+                Recent(o.getString("key"), o.getString("sid"), o.getString("path"), o.optBoolean("rar"), o.optString("title"), o.optLong("ts"))
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    @Synchronized
+    fun addRecent(r: Recent) {
+        val list = (listOf(r) + recents().filter { it.key != r.key }).take(10)
+        val arr = JSONArray()
+        list.forEach {
+            arr.put(JSONObject().put("key", it.key).put("sid", it.sourceId).put("path", it.path)
+                .put("rar", it.rar).put("title", it.title).put("ts", it.ts))
+        }
+        prefs.edit().putString("recent", arr.toString()).apply()
+    }
 
     // ---- watch state -------------------------------------------------------------------------
 

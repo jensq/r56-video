@@ -5,6 +5,10 @@ import java.util.Locale
 /** Tiny translation helper: English text is the key, Swedish comes from the table below. */
 object L {
     private val sv: Map<String, String> = mapOf(
+        "Recently watched" to "Senast sedda",
+        "Go to folder" to "Gå till mappen",
+        "No videos watched yet" to "Inga videor har setts än",
+        "The 10 most recently watched videos" to "De 10 senast sedda videorna",
         "Favorites" to "Favoriter",
         "Saved network locations" to "Sparade nätverksplatser",
         "No favorites yet.\nChoose \"Add location\" in the menu on the left\nto add a network folder (SMB)." to "Inga favoriter än.\nVälj \"Lägg till plats\" i menyn till vänster\nför att lägga till en nätverksmapp (SMB).",

@@ -59,6 +59,10 @@ class PlayerActivity : Activity() {
     private var ffmpegFirst = false
     private var autoSwitched = false
     private var title = ""
+    private var recorded = false
+    private var recSrcId = ""
+    private var recPath = ""
+    private var recRar = false
 
     private val hideOsdRunnable = Runnable { hideOsd() }
     private val hideToastRunnable = Runnable { toast.visibility = View.GONE }
@@ -88,6 +92,9 @@ class PlayerActivity : Activity() {
         title = intent.getStringExtra("title") ?: path.substringAfterLast('/')
         startMs = intent.getLongExtra("startMs", 0L)
         progressKey = Store.fileKey(src, path)
+        recSrcId = src.id
+        recPath = path
+        recRar = isRar
 
         buildUi()
         setContentView(buildRoot())
@@ -400,6 +407,10 @@ class PlayerActivity : Activity() {
         val dur = p.duration
         if (dur <= 0 || dur == C.TIME_UNSET) return
         val pos = p.currentPosition
+        if (!recorded && (ended || pos >= dur * 0.95 || pos >= 15_000)) {
+            recorded = true
+            Store.addRecent(Recent(progressKey, recSrcId, recPath, recRar, title, System.currentTimeMillis()))
+        }
         when {
             ended || pos >= dur * 0.95 -> Store.setProgress(progressKey, 0, dur, true)
             pos >= 15_000 -> {

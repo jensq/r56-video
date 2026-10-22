@@ -84,6 +84,9 @@ class MainActivity : Activity() {
             sources.getOrNull(selected)?.let { showEditor(it) }
         })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_delete, L.t("Remove selected")) { confirmRemove() })
+        Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_history, L.t("Recently watched")) {
+            startActivity(Intent(this, RecentActivity::class.java))
+        })
         Ui.addMenu(shell, Ui.menuButton(this, R.drawable.ic_settings, L.t("Settings")) {
             startActivity(Intent(this, SettingsActivity::class.java))
         })
