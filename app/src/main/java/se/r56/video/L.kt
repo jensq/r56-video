@@ -5,6 +5,9 @@ import java.util.Locale
 /** Tiny translation helper: English text is the key, Swedish comes from the table below. */
 object L {
     private val sv: Map<String, String> = mapOf(
+        "Network buffering" to "Nätverksbuffring",
+        "Normal" to "Normal",
+        "Large (more memory)" to "Stor (mer minne)",
         "Recently watched" to "Senast sedda",
         "Go to folder" to "Gå till mappen",
         "No videos watched yet" to "Inga videor har setts än",

@@ -32,7 +32,7 @@ object Smb {
         val b = SmbConfig.builder()
             .withTimeout(30, TimeUnit.SECONDS)
             .withSoTimeout(60, TimeUnit.SECONDS)
-            .withReadBufferSize(64 * 1024)
+            .withReadBufferSize(if (compat) 64 * 1024 else 256 * 1024)
             .withWriteBufferSize(64 * 1024)
             .withTransactBufferSize(64 * 1024)
             .withDfsEnabled(false)

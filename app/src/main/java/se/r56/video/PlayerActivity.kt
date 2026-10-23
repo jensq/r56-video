@@ -27,6 +27,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -369,7 +370,14 @@ class PlayerActivity : Activity() {
                 else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
             )
             .setEnableDecoderFallback(true)
+        val big = Store.bigBuffer
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(30_000, if (big) 120_000 else 60_000, 2_500, 8_000)
+            .setTargetBufferBytes((if (big) 160 else 96) * 1024 * 1024)
+            .setPrioritizeTimeOverSizeThresholds(false)
+            .build()
         val p = ExoPlayer.Builder(this, renderers)
+            .setLoadControl(loadControl)
             .setMediaSourceFactory(DefaultMediaSourceFactory(SmbDataSource.Factory()))
             .build()
         p.addListener(listener)

@@ -76,6 +76,11 @@ object Store {
         get() = prefs.getBoolean("swAudio", false)
         set(v) = prefs.edit().putBoolean("swAudio", v).apply()
 
+    /** Larger read-ahead and player buffer (uses more memory). */
+    var bigBuffer: Boolean
+        get() = prefs.getBoolean("bigBuffer", false)
+        set(v) = prefs.edit().putBoolean("bigBuffer", v).apply()
+
     var seekBackSec: Int
         get() = prefs.getInt("seekBack", 10)
         set(v) = prefs.edit().putInt("seekBack", v).apply()

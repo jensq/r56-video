@@ -8,6 +8,10 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.DataSpec
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /** Random access reader over something on an SMB share. */
 interface RandomReader {
@@ -45,7 +49,7 @@ class SmbFileReader(private val src: Source, private val path: String) : RandomR
     }
 }
 
-/** The video inside a multi-volume RAR set, presented as one continuous file. */
+/** The video inside a multi-volume RAR set, presented as one continuous file. Safe for concurrent reads. */
 class RarReader(
     private val src: Source,
     private val dir: String,
@@ -53,8 +57,7 @@ class RarReader(
 ) : RandomReader {
     private val segs = res.segments
     override val length: Long = res.totalSize
-    private var curVol: String? = null
-    private var cur: SmbFile? = null
+    private val files = HashMap<String, SmbFile>()
 
     private fun volPath(vol: String) = if (dir.isEmpty()) vol else "$dir/$vol"
 
@@ -68,22 +71,32 @@ class RarReader(
         return segs[lo]
     }
 
-    private fun closeCurrent() {
-        try {
-            cur?.close()
-        } catch (_: Exception) {
-        }
-        cur = null
-        curVol = null
+    @Synchronized
+    private fun fileFor(vol: String): SmbFile {
+        files[vol]?.let { return it }
+        if (files.size >= 4) closeAllLocked() // keep only a few volumes open while playing through the set
+        val f = Smb.openFile(src, volPath(vol))
+        files[vol] = f
+        return f
     }
 
-    private fun fileFor(vol: String): SmbFile {
-        if (vol != curVol || cur == null) {
-            closeCurrent()
-            cur = Smb.openFile(src, volPath(vol))
-            curVol = vol
+    @Synchronized
+    private fun drop(vol: String, f: SmbFile) {
+        if (files[vol] === f) files.remove(vol)
+        try {
+            f.close()
+        } catch (_: Exception) {
         }
-        return cur!!
+    }
+
+    private fun closeAllLocked() {
+        for (f in files.values) {
+            try {
+                f.close()
+            } catch (_: Exception) {
+            }
+        }
+        files.clear()
     }
 
     override fun read(pos: Long, buf: ByteArray, off: Int, len: Int): Int {
@@ -93,16 +106,165 @@ class RarReader(
         val n = minOf(len.toLong(), seg.size - inSeg).toInt()
         if (n <= 0) return -1
         val filePos = seg.offset + inSeg
+        val f = fileFor(seg.volume)
         return try {
-            fileFor(seg.volume).read(buf, filePos, off, n)
+            f.read(buf, filePos, off, n)
         } catch (e: Exception) {
-            closeCurrent()
+            drop(seg.volume, f)
             Smb.reset(src)
             fileFor(seg.volume).read(buf, filePos, off, n)
         }
     }
 
-    override fun close() = closeCurrent()
+    @Synchronized
+    override fun close() = closeAllLocked()
+}
+
+private const val PR_BLOCK = 256 * 1024
+private const val PR_MIN_SIZE = 8L * 1024 * 1024
+
+/**
+ * Reads several blocks of the file at the same time on background threads and hands them out in order.
+ * One SMB request at a time is limited by network round-trip time (bad on wifi); several in flight is not.
+ */
+class ParallelReader(
+    private val base: RandomReader,
+    private val workers: Int,
+    private val windowBlocks: Int
+) : RandomReader {
+    private class Block(val data: ByteArray, val len: Int)
+
+    override val length: Long = base.length
+    private val lock = ReentrantLock()
+    private val cond = lock.newCondition()
+    private val done = HashMap<Long, Block>()
+    private var gen = 0
+    private var startPos = 0L
+    private var nextIdx = 0L
+    private var consumeIdx = 0L
+    private var expected = -1L
+    private var error: Throwable? = null
+    private var closed = false
+    private var threads: List<Thread> = emptyList()
+
+    /** Called with the lock held: (re)start reading at pos. */
+    private fun restart(pos: Long) {
+        gen++
+        done.clear()
+        startPos = pos
+        nextIdx = 0
+        consumeIdx = 0
+        expected = pos
+        error = null
+        if (threads.isEmpty()) {
+            threads = (0 until workers).map { i ->
+                Thread({ work() }, "r56-read-$i").also {
+                    it.isDaemon = true
+                    it.start()
+                }
+            }
+        }
+        cond.signalAll()
+    }
+
+    private fun work() {
+        while (true) {
+            var idx = 0L
+            var g = 0
+            var pos = 0L
+            var want = 0
+            lock.lock()
+            try {
+                while (true) {
+                    if (closed) return
+                    val p = startPos + nextIdx * PR_BLOCK
+                    if (error == null && p < length && nextIdx - consumeIdx < windowBlocks) break
+                    cond.await(300, TimeUnit.MILLISECONDS)
+                }
+                idx = nextIdx++
+                g = gen
+                pos = startPos + idx * PR_BLOCK
+                want = minOf(PR_BLOCK.toLong(), length - pos).toInt()
+            } finally {
+                lock.unlock()
+            }
+            try {
+                val data = ByteArray(want)
+                var got = 0
+                while (got < want) {
+                    val n = base.read(pos + got, data, got, want - got)
+                    if (n <= 0) break
+                    got += n
+                }
+                if (got < want) throw IOException("Unexpected end of file")
+                lock.withLock {
+                    if (g == gen) {
+                        done[idx] = Block(data, want)
+                        cond.signalAll()
+                    }
+                }
+            } catch (e: Throwable) {
+                lock.withLock {
+                    if (g == gen && !closed) {
+                        error = e
+                        cond.signalAll()
+                    }
+                }
+            }
+        }
+    }
+
+    override fun read(pos: Long, buf: ByteArray, off: Int, len: Int): Int {
+        if (pos >= length) return -1
+        return lock.withLock {
+            if (closed) return@withLock -1
+            if (pos != expected) restart(pos)
+            while (true) {
+                val err = error
+                if (err != null) throw IOException(err.message ?: err.toString(), err)
+                if (closed) return@withLock -1
+                val blk = done[consumeIdx]
+                if (blk != null) {
+                    val blockStart = startPos + consumeIdx * PR_BLOCK
+                    val inBlk = (pos - blockStart).toInt()
+                    val n = minOf(len, blk.len - inBlk)
+                    System.arraycopy(blk.data, inBlk, buf, off, n)
+                    expected = pos + n
+                    if (inBlk + n >= blk.len) {
+                        done.remove(consumeIdx)
+                        consumeIdx++
+                        cond.signalAll()
+                    }
+                    return@withLock n
+                }
+                try {
+                    cond.await(300, TimeUnit.MILLISECONDS)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw InterruptedIOException()
+                }
+            }
+            @Suppress("UNREACHABLE_CODE")
+            -1
+        }
+    }
+
+    override fun close() {
+        val ts: List<Thread>
+        lock.withLock {
+            closed = true
+            done.clear()
+            cond.signalAll()
+            ts = threads
+        }
+        for (t in ts) {
+            try {
+                t.join(3000)
+            } catch (_: InterruptedException) {
+            }
+        }
+        base.close()
+    }
 }
 
 object RarSupport {
@@ -155,7 +317,13 @@ class SmbDataSource : BaseDataSource(true) {
             val isRar = u.scheme == SCHEME_RAR
             // r56rar URIs carry the inner file name as an extra last segment (helps ExoPlayer pick the extractor)
             val path = (if (isRar) segs.dropLast(1) else segs).joinToString("/")
-            val r: RandomReader = if (isRar) RarSupport.reader(src, path) else SmbFileReader(src, path)
+            val base: RandomReader = if (isRar) RarSupport.reader(src, path) else SmbFileReader(src, path)
+            val big = Store.bigBuffer
+            val r: RandomReader = if (base.length > PR_MIN_SIZE) {
+                ParallelReader(base, if (big) 5 else 3, if (big) 64 else 32)
+            } else {
+                base
+            }
             reader = r
             if (dataSpec.position > r.length) {
                 throw DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE)

@@ -18,6 +18,7 @@ class SettingsActivity : Activity() {
     private lateinit var backValue: TextView
     private lateinit var fwdValue: TextView
     private lateinit var audioValue: TextView
+    private lateinit var bufValue: TextView
 
     private val sizes = listOf(
         L.t("Extra small") to 12, L.t("Small") to 16, L.t("Medium") to 20, L.t("Large") to 24, L.t("Extra large") to 28, L.t("Huge") to 34
@@ -34,7 +35,10 @@ class SettingsActivity : Activity() {
 
         val col = LinearLayout(this)
         col.orientation = LinearLayout.VERTICAL
-        shell.content.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        val scroll = android.widget.ScrollView(this)
+        scroll.isFillViewport = true
+        scroll.addView(col, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        shell.content.addView(scroll, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         val r0 = row(L.t("Language")) { chooseLanguage() }
         langValue = r0.second
@@ -51,6 +55,9 @@ class SettingsActivity : Activity() {
         val r4 = row(L.t("Audio decoder")) { chooseAudio() }
         audioValue = r4.second
         col.addView(r4.first)
+        val r5 = row(L.t("Network buffering")) { chooseBuffer() }
+        bufValue = r5.second
+        col.addView(r5.first)
 
         preview = Ui.text(this, "", 20f)
         preview.setPadding(Ui.dp(this, 16), Ui.dp(this, 28), 0, 0)
@@ -90,6 +97,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun refresh() {
+        bufValue.text = if (Store.bigBuffer) L.t("Large") else L.t("Normal")
         langValue.text = if (Store.language == "sv") "Svenska" else "English"
         sizeValue.text = sizeName(Store.textSizeSp)
         backValue.text = secLabel(Store.seekBackSec)
@@ -109,6 +117,18 @@ class SettingsActivity : Activity() {
                     Store.language = code
                     recreate()
                 }
+            }
+            .show()
+    }
+
+    private fun chooseBuffer() {
+        val items = arrayOf(L.t("Normal"), L.t("Large (more memory)"))
+        AlertDialog.Builder(this)
+            .setTitle(L.t("Network buffering"))
+            .setSingleChoiceItems(items, if (Store.bigBuffer) 1 else 0) { d, which ->
+                Store.bigBuffer = which == 1
+                d.dismiss()
+                refresh()
             }
             .show()
     }
