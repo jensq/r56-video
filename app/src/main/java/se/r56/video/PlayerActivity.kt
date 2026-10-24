@@ -30,6 +30,7 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import java.util.Locale
@@ -61,6 +62,17 @@ class PlayerActivity : Activity() {
     private var autoSwitched = false
     private var title = ""
     private var recorded = false
+    private lateinit var infoView: TextView
+    private var showInfo = false
+    private var audioDec = "?"
+    private var videoDec = "?"
+    private var dropped = 0
+    private var rebuffers = 0
+    private var readySeen = false
+    private var bwEstimate = 0L
+    private var lastBytes = 0L
+    private var lastBytesTs = 0L
+    private var netRate = 0.0
     private var recSrcId = ""
     private var recPath = ""
     private var recRar = false
@@ -74,6 +86,7 @@ class PlayerActivity : Activity() {
     private val ticker = object : Runnable {
         override fun run() {
             updateUi()
+            updateInfo()
             tick++
             if (tick % 10 == 0) saveProgress(false)
             handler.postDelayed(this, 500)
@@ -164,6 +177,18 @@ class PlayerActivity : Activity() {
         loading = Ui.text(this, L.t("Opening…"), 22f)
         rootView.addView(loading, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
 
+        infoView = TextView(this)
+        infoView.setTextColor(Color.WHITE)
+        infoView.textSize = 14f
+        infoView.typeface = android.graphics.Typeface.MONOSPACE
+        infoView.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8))
+        infoView.setBackgroundColor(0xB0000000.toInt())
+        infoView.visibility = View.GONE
+        val ilp = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START)
+        ilp.topMargin = Ui.dp(this, 64)
+        ilp.leftMargin = Ui.dp(this, 24)
+        rootView.addView(infoView, ilp)
+
         topBar = Ui.text(this, title, 22f)
         topBar.setPadding(Ui.dp(this, 32), Ui.dp(this, 20), Ui.dp(this, 32), Ui.dp(this, 32))
         topBar.maxLines = 1
@@ -231,6 +256,7 @@ class PlayerActivity : Activity() {
         buttons.addView(gap, LinearLayout.LayoutParams(Ui.dp(this, 40), 1))
         buttons.addView(ctrlButton(R.drawable.ic_audio) { showTrackDialog(C.TRACK_TYPE_AUDIO, L.t("Audio track")) })
         buttons.addView(ctrlButton(R.drawable.ic_subs) { showTrackDialog(C.TRACK_TYPE_TEXT, L.t("Subtitles")) })
+        buttons.addView(ctrlButton(R.drawable.ic_info) { toggleInfo() })
         osd.addView(buttons)
 
         rootView.addView(osd, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
@@ -320,6 +346,8 @@ class PlayerActivity : Activity() {
 
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_READY) readySeen = true
+            if (playbackState == Player.STATE_BUFFERING && readySeen) rebuffers++
             if (playbackState == Player.STATE_ENDED) {
                 saveProgress(true)
                 finishPlayback()
@@ -381,6 +409,7 @@ class PlayerActivity : Activity() {
             .setMediaSourceFactory(DefaultMediaSourceFactory(SmbDataSource.Factory()))
             .build()
         p.addListener(listener)
+        p.addAnalyticsListener(analytics)
         playerView.player = p
         val item = MediaItem.Builder().setUri(uri).setSubtitleConfigurations(subs).build()
         p.setMediaItem(item, startAt)
@@ -389,6 +418,71 @@ class PlayerActivity : Activity() {
         player = p
         loading.visibility = View.GONE
         handler.post(ticker)
+    }
+
+    private val analytics = object : AnalyticsListener {
+        override fun onAudioDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+            audioDec = decoderName
+        }
+
+        override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+            videoDec = decoderName
+        }
+
+        override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) {
+            dropped += droppedFrames
+        }
+
+        override fun onBandwidthEstimate(eventTime: AnalyticsListener.EventTime, totalLoadTimeMs: Int, totalBytesLoaded: Long, bitrateEstimate: Long) {
+            bwEstimate = bitrateEstimate
+        }
+    }
+
+    private fun toggleInfo() {
+        showInfo = !showInfo
+        infoView.visibility = if (showInfo) View.VISIBLE else View.GONE
+        updateInfo()
+        if (osdVisible) scheduleHideOsd()
+    }
+
+    private fun updateInfo() {
+        if (!showInfo) return
+        val p = player ?: return
+        val now = android.os.SystemClock.elapsedRealtime()
+        val b = NetStats.bytes.get()
+        if (lastBytesTs == 0L) {
+            lastBytes = b
+            lastBytesTs = now
+        } else if (now - lastBytesTs >= 1000) {
+            netRate = (b - lastBytes) * 1000.0 / (now - lastBytesTs)
+            lastBytes = b
+            lastBytesTs = now
+        }
+        val state = when (p.playbackState) {
+            Player.STATE_BUFFERING -> "BUFFERING"
+            Player.STATE_READY -> if (p.playWhenReady) "PLAYING" else "PAUSED"
+            Player.STATE_ENDED -> "ENDED"
+            else -> "IDLE"
+        }
+        val v = p.videoFormat
+        val a = p.audioFormat
+        val vTxt = if (v == null) "-" else "${v.sampleMimeType?.substringAfter('/') ?: "?"} ${v.width}x${v.height}" +
+                (if (v.bitrate > 0) " ${v.bitrate / 1000} kbit/s" else "")
+        val aTxt = if (a == null) "-" else "${a.sampleMimeType?.substringAfter('/') ?: "?"} ${a.channelCount}ch" +
+                (if (a.bitrate > 0) " ${a.bitrate / 1000} kbit/s" else "")
+        infoView.text = String.format(
+            java.util.Locale.US,
+            "%s   buffer %.1f s   stalls %d\n" +
+                    "network %.1f MB/s (%.0f Mbit/s)   player estimate %.0f Mbit/s\n" +
+                    "video %s\n  decoder %s   dropped %d\n" +
+                    "audio %s\n  decoder %s\n" +
+                    "audio mode: %s",
+            state, p.totalBufferedDuration / 1000.0, rebuffers,
+            netRate / 1048576.0, netRate * 8 / 1e6, bwEstimate / 1e6,
+            vTxt, videoDec, dropped,
+            aTxt, audioDec,
+            if (ffmpegFirst) "software first" else "automatic"
+        )
     }
 
     private fun togglePlay() {

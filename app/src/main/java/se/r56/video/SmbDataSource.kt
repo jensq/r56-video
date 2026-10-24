@@ -120,6 +120,11 @@ class RarReader(
     override fun close() = closeAllLocked()
 }
 
+/** Bytes actually fetched from the network (for the playback info panel). */
+object NetStats {
+    val bytes = java.util.concurrent.atomic.AtomicLong()
+}
+
 private const val PR_BLOCK = 256 * 1024
 private const val PR_MIN_SIZE = 8L * 1024 * 1024
 
@@ -195,6 +200,7 @@ class ParallelReader(
                     val n = base.read(pos + got, data, got, want - got)
                     if (n <= 0) break
                     got += n
+                    NetStats.bytes.addAndGet(n.toLong())
                 }
                 if (got < want) throw IOException("Unexpected end of file")
                 lock.withLock {
