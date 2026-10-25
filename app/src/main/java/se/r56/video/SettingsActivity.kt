@@ -58,6 +58,9 @@ class SettingsActivity : Activity() {
         val r5 = row(L.t("Network buffering")) { chooseBuffer() }
         bufValue = r5.second
         col.addView(r5.first)
+        val r6 = row(L.t("Network speed test")) { startActivity(android.content.Intent(this, SpeedTestActivity::class.java)) }
+        r6.second.text = "›"
+        col.addView(r6.first)
 
         preview = Ui.text(this, "", 20f)
         preview.setPadding(Ui.dp(this, 16), Ui.dp(this, 28), 0, 0)

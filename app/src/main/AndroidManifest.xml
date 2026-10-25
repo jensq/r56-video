@@ -42,6 +42,7 @@
         <activity android:name=".BrowserActivity" android:exported="false" />
         <activity android:name=".SettingsActivity" android:exported="false" />
         <activity android:name=".RecentActivity" android:exported="false" />
+        <activity android:name=".SpeedTestActivity" android:exported="false" />
 
         <activity
             android:name=".PlayerActivity"
