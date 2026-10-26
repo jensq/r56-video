@@ -40,6 +40,7 @@ class PlayerActivity : Activity() {
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private lateinit var topBar: TextView
+    private lateinit var clockView: TextView
     private lateinit var osd: LinearLayout
     private lateinit var btnPlay: ImageView
     private lateinit var seekBar: SeekBar
@@ -190,12 +191,17 @@ class PlayerActivity : Activity() {
         rootView.addView(infoView, ilp)
 
         topBar = Ui.text(this, title, 22f)
-        topBar.setPadding(Ui.dp(this, 32), Ui.dp(this, 20), Ui.dp(this, 32), Ui.dp(this, 32))
+        topBar.setPadding(Ui.dp(this, 32), Ui.dp(this, 20), Ui.dp(this, 200), Ui.dp(this, 32))
         topBar.maxLines = 1
         topBar.ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
         topBar.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0xCC000000.toInt(), 0x00000000))
         topBar.visibility = View.GONE
         rootView.addView(topBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+        clockView = Ui.text(this, "", 22f)
+        clockView.gravity = Gravity.END
+        clockView.setPadding(Ui.dp(this, 32), Ui.dp(this, 20), Ui.dp(this, 32), Ui.dp(this, 8))
+        clockView.visibility = View.GONE
+        rootView.addView(clockView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END))
 
         toast = Ui.text(this, "", 28f)
         toast.setPadding(Ui.dp(this, 24), Ui.dp(this, 12), Ui.dp(this, 24), Ui.dp(this, 12))
@@ -283,6 +289,7 @@ class PlayerActivity : Activity() {
         osdVisible = true
         osd.visibility = View.VISIBLE
         topBar.visibility = View.VISIBLE
+        clockView.visibility = View.VISIBLE
         if (!osd.hasFocus()) btnPlay.requestFocus()
         updateUi()
         scheduleHideOsd()
@@ -292,6 +299,7 @@ class PlayerActivity : Activity() {
         osdVisible = false
         osd.visibility = View.GONE
         topBar.visibility = View.GONE
+        clockView.visibility = View.GONE
         handler.removeCallbacks(hideOsdRunnable)
     }
 
@@ -317,6 +325,17 @@ class PlayerActivity : Activity() {
                 timeCur.text = Ui.fmtTime(pos)
                 seekBar.progress = (pos * 1000 / dur).toInt().coerceIn(0, 1000)
             }
+        }
+        if (osdVisible) {
+            val fmt = java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
+            val now = System.currentTimeMillis()
+            var txt = fmt.format(java.util.Date(now))
+            if (dur > 0 && dur != C.TIME_UNSET) {
+                val speed = p.playbackParameters.speed.coerceAtLeast(0.1f)
+                val left = ((dur - pos) / speed).toLong().coerceAtLeast(0L)
+                txt += "\n" + L.f("Ends %s", fmt.format(java.util.Date(now + left)))
+            }
+            clockView.text = txt
         }
         btnPlay.setImageResource(if (p.playWhenReady) R.drawable.ic_pause else R.drawable.ic_play)
     }

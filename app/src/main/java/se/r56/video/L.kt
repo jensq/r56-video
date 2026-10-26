@@ -5,6 +5,7 @@ import java.util.Locale
 /** Tiny translation helper: English text is the key, Swedish comes from the table below. */
 object L {
     private val sv: Map<String, String> = mapOf(
+        "Ends %s" to "Slutar %s",
         "Network speed test" to "Hastighetstest för nätverk",
         "Run again" to "Kör igen",
         "Choose a location to test" to "Välj plats att testa",
